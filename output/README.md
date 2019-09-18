@@ -4,3 +4,5 @@
 
 The output directory contains analysis output, processed datasets, logs, or other processed things.
 
+Project report is the file project1.html
+
