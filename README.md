@@ -12,7 +12,7 @@ Term: Fall 2019
 
 + Project summary: This project analyzes the information hidden behind lyrics of songs, mainly on length of lyrics, choice of words, and sentiment analysis of lyrics. This project put an emphasis on the analysis of hip-hop music, and a specific hip-hop artist: Eminem.
 
-+ Project report (output/project1.html)
++ [Project report] (output/project1.html)
 
 
 Following [suggestions](http://nicercode.github.io/blog/2013-04-05-projects/) by [RICH FITZJOHN](http://nicercode.github.io/about/#Team) (@richfitz). This folder is orgarnized as follows.
