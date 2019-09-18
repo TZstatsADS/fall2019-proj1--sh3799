@@ -51,7 +51,7 @@ leadingWhitespace <- content_transformer(function(x) str_trim(x, side = "both"))
 data("stop_words")
 word <- c("lot", "today", "months", "month", "wanna", "wouldnt", "wasnt", "ha", "na", "ooh", "da",
         "gonna", "im", "dont", "aint", "wont", "yeah", "la", "oi", "nigga", "fuck",
-          "hey", "year", "years", "last", "past", "feel")
+          "hey", "year", "years", "last", "past", "feel", "niggas", "niggaz", "motherfucker", "fuckin", "bitch", "fucking","uh", "fucked", "bitches", "motherfuckers", "dick")
 stop_words <- c(stop_words$word, word)
 # clean the data and make a corpus
 corpus <- VCorpus(VectorSource(dt_lyrics$lyrics))%>%
@@ -128,7 +128,7 @@ completed <- completed %>%
 ```{r cleaned hm_data, warning=FALSE, message=FALSE}
 dt_lyrics <- dt_lyrics %>%
   mutate(id = row_number()) %>%
-  inner_join(completed)
+  inner_join(completed, by="id")
 ```
 
 ### Exporting the processed text data into a CSV file

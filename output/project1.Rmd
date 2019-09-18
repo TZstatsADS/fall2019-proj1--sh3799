@@ -1,5 +1,6 @@
 ---
-title: "project1"
+title: "Story behind the Lyrics: length, emotion and choice of words"
+author: "Sixing Hao, sh3799"
 output: html_document
 ---
 
@@ -7,6 +8,242 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-```{r}
-load('../output/processed_lyrics.RData') 
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+packages.used=c("tidyverse", "wordcloud2", "ngram", "gridExtra", "plotly", "tidytext")
+# check packages that need to be installed.
+packages.needed=setdiff(packages.used, 
+                        intersect(installed.packages()[,1], 
+                                  packages.used))
+# install additional packages
+if(length(packages.needed)>0){
+  install.packages(packages.needed, dependencies = TRUE)
+}
+
+library(tidyverse)
+library(wordcloud2)
+library(ngram)
+library(gridExtra)
+library(plotly)
+library(tidytext)
+
+load('../output/processed_lyrics.RData')
+dt_lyrics <- dt_lyrics %>% filter(genre != "Not Available")
+dt_lyrics$lyriccount <- sapply(dt_lyrics$lyrics, function(x) wordcount(x, sep = " ", count.function = sum))
+dt_lyrics$stemcount <- sapply(dt_lyrics$stemmedwords, function(x) wordcount(x, sep = " ", count.function = sum))
 ```
+
+We all love music, and songs are one of the most familiar form of music that we know and enjoy. While everyone might have their own understanding on rhythms and tones, lyrics are more explicit, and there's a lot of information contained in the lyrics, such as length of song, main idea of the song, and the unique characteristics of the artist who created the song. This report will analyze the information contained in lyrics, and focus on certain artist of a certain genre. 
+
+## How long are the songs?
+
+Before we dive into any specific genre of music, let’s first get a general idea of the length of songs for different genres, in terms of lyric word counts. Notice that there are always many words with little meaning, such as “a” and “the”, and words with different form, such as “house” and “housing”. To avoid counting these, I made modifications to lyrics and created a new dataset with only stem words. 
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+count_genre <-
+  dt_lyrics %>% group_by(genre) %>% summarise(lyric = mean(lyriccount), stem = mean(stemcount))
+
+count_genre_gather <-
+  gather(count_genre, key = "type", value = "count", -genre) %>% arrange(desc(count))
+
+wordcount1 <- ggplot(count_genre_gather, aes(
+  x = count,
+  y = genre,
+  color = type
+)) +
+  geom_point() + ylab("") + ggtitle("Word count for song lyrics of different genre")
+wordcount1 <- ggplotly(wordcount1)
+wordcount1
+```
+
+According to the dot-plot, we can see that hip-hop songs out-numbered other genres both in lyric word count and stem word count.  This result makes sense, since many of the hip-hop songs contain a rapping part, which will have many words. 
+
+However, having the most wordcount does not necessary imply all words being meaningful. To inspect the proportion of effective words in lyric, I created a stat called effective-ratio, which calculates the proportion of stem words in all lyrics. 
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+count_genre$effective_ratio <- count_genre$stem / count_genre$lyric
+
+wordcount2 <- ggplot(count_genre) +
+  geom_bar(aes(x = reorder(`genre`, effective_ratio), y = effective_ratio), stat = "identity") +   geom_hline(yintercept=mean(dt_lyrics$stemcount/dt_lyrics$lyriccount), linetype="dashed", color = "red")+
+  coord_flip()+xlab("")+ggtitle("Ratio of effective lyric in different genre") 
+
+wordcount2
+```
+
+The red dotted line represents the average level of effective ratio for all songs, and we can see that hip-hop has an effective-ratio that’s above average.
+
+## Popular hip-hop artists
+
+In the dataset, there are 158 artists categorized as “hip-hop”. Here I picked the hip-hop artists with more than 100 songs recorded in the dataset, and counted their lyric word count. In the plot below, each point represents an artist. You can hover your mouse on it to see the name of the artist, number of songs, and average lyric word count of all songs created by this artist.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+dt_hiphop <- dt_lyrics %>% filter(genre == "Hip-Hop") 
+temp <- dt_hiphop %>% group_by(artist) %>% tally()
+lyric_hiphop <- dt_lyrics %>% filter(artist %in% dt_hiphop$artist)
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+dt_hiphop100 <- dt_hiphop %>% group_by(artist) %>% summarise(lyric_count = mean(lyriccount), n.songs = n()) %>% filter(n.songs >=100)
+
+hh_artist <- ggplot(dt_hiphop100, aes(x=n.songs, y=lyric_count))+
+  geom_point(aes(fill = artist), 
+             alpha = 0.7, size = 5, shape = 21)+
+  theme(legend.position = "none") +xlab("number of songs")+ylab("lyric count")+
+  ggtitle("Popular Hip-Hop artists")
+
+hh_artist <- ggplotly(hh_artist)
+hh_artist
+```
+
+Majority of the artists have less than 300 songs, and lyric word count below 600. Notice that, there’s a point at the top-right corner, which means this artist writes lots of songs, all of which has lots of words in lyrics. As we can see, this artist is Eminem, known as a famous rapper.
+
+## What are Eminem’s word choices?
+
+### General word choice
+
+To figure out popular words used by Eminem, I calculated the number of appearances for all words in stem part of the lyric. The word cloud below shows the top 200 most frequently used words in Eminem’s songs.
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+dt_eminem <- dt_lyrics %>% filter(artist=="eminem")
+
+stem_eminem <- strsplit(dt_eminem$stemmedwords, " ") %>% unlist() %>% table() %>% as.data.frame() %>% arrange(desc(Freq))
+colnames(stem_eminem) <- c("word","count")
+
+wc_eminem <- wordcloud2(stem_eminem[1:200,],size = 0.6,color = "random-dark")
+wc_eminem
+
+stem_eminem$frequency <- stem_eminem$count/sum(stem_eminem$count)
+```
+
+Let’s also pull up the word cloud for top 200 words used in all hip-hop songs for comparison:
+
+```{r  echo=FALSE, message=FALSE, warning=FALSE}
+stem_hiphop <- strsplit(lyric_hiphop$stemmedwords, " ") %>% unlist() %>% table() %>% as.data.frame() %>% arrange(desc(Freq))
+colnames(stem_hiphop) <- c("word","count")
+
+wc_hiphop <- wordcloud2(stem_hiphop[1:200,],size = 0.6, color = "random-dark")
+wc_hiphop
+
+stem_hiphop$frequency <- stem_hiphop$count/sum(stem_hiphop$count)
+```
+
+From these two plots, we can see that, Eminem definitely has his own preferences on choice of words. Words such as “shady”, “ill” are beloved by Eminem, while some popular words in all hip-hop songs such as “baby” and “money” does not appear frequently in Eminem’s songs.
+
+### Expressing the emotions
+
+When it comes to emotion expression, Eminem seems to keep his unique style as well. By using sentiment analysis, we can see the most frequent words used by Eminem to express positive and negative feelings. To compare, I listed the top 10 words for expressing different sentiments in Eminem’s songs, all hip-hop songs, and songs of all genre.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.height = 10}
+
+eminem_sentiment <- stem_eminem %>% inner_join(get_sentiments("bing")) %>% group_by(sentiment) %>% top_n(10, frequency)
+
+eminem_sentiment_plot <-
+  ggplot(eminem_sentiment,
+         aes(
+           x = reorder(word, frequency),
+           y = frequency,
+           fill = sentiment
+         )) +
+  geom_bar(position = "dodge", stat = "identity") + facet_wrap( ~ sentiment, scales = "free") +
+  coord_flip() + xlab("") + ggtitle("Top 10 words being used to express each sentiments (Eminem)") + theme(legend.position = "none")
+
+hiphop_sentiment <- stem_hiphop %>% inner_join(get_sentiments("bing")) %>% group_by(sentiment) %>% top_n(10, frequency)
+
+hiphop_sentiment_plot <-
+  ggplot(hiphop_sentiment,
+         aes(
+           x = reorder(word, frequency),
+           y = frequency,
+           fill = sentiment
+         )) +
+  geom_bar(position = "dodge", stat = "identity") + facet_wrap( ~ sentiment, scales = "free") +
+  coord_flip() + xlab("") + ggtitle("Top 10 words being used to express each sentiments (Hip-Hop)") + theme(legend.position = "none")
+
+stem_all <- strsplit(dt_lyrics$stemmedwords, " ") %>% unlist() %>% table() %>% as.data.frame() %>% arrange(desc(Freq))
+colnames(stem_all) <- c("word","count")
+
+stem_all$frequency <- stem_all$count/sum(stem_all$count)
+
+all_sentiment <- stem_all %>% inner_join(get_sentiments("bing")) %>% group_by(sentiment) %>% top_n(10, frequency)
+
+all_sentiment_plot <-
+  ggplot(all_sentiment,
+         aes(
+           x = reorder(word, frequency),
+           y = frequency,
+           fill = sentiment
+         )) +
+  geom_bar(position = "dodge", stat = "identity") + facet_wrap( ~ sentiment, scales = "free") +
+  coord_flip() + xlab("") + ggtitle("Top 10 words being used to express each sentiments (All songs)") + theme(legend.position = "none")
+
+sentiment <- grid.arrange(eminem_sentiment_plot, hiphop_sentiment_plot, all_sentiment_plot, nrow=3)
+```
+
+By comparing Eminem’s word choice and tops words in all hip-hop songs, we can still find some similarities, despite the difference in general. At least half of the words in hip-hop can be also found in Eminem’s word choice. However, the top words in all songs are very different from the top words in both hip-hop songs and Eminem’s songs. It shouldn’t be a surprising result, considering how hip-hop is different from other genres, and how Eminem is more of a hip-hop rapper than a singer in general. 
+
+## Does Eminem’s use of words change over time?
+
+In the dataset, the publish time of Eminem’s song varies from 2002 to 2016. This makes us wonder: does Eminem’s preference on words ever change? To figure this out, I divided the time into 3 stages: 2002-2006 as “early”, 2007-2011 as “mid”, and 2012-2016 as “recent”. I picked top 10 most frequently used words of all time in Eminem’s song, and looked at the frequency of appearance of these 10 words in different stages.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.width=9}
+early <- c(2002,2003,2004,2005,2006)
+mid <- c(2007,2008,2009,2010,2011)
+recent <- c(2012,2013,2014,2015,2016)
+
+eminem_early <- dt_eminem %>% filter(year %in% early)
+eminem_mid <- dt_eminem %>% filter(year %in% mid)
+eminem_recent <- dt_eminem %>% filter(year %in% recent)
+
+stem_eminem_early <- strsplit(eminem_early$stemmedwords, " ") %>% unlist() %>% table() %>% as.data.frame() %>% arrange(desc(Freq))
+colnames(stem_eminem_early) <- c("word","count")
+stem_eminem_early$frequency <- stem_eminem_early$count/sum(stem_eminem_early$count)
+
+stem_eminem_mid <- strsplit(eminem_mid$stemmedwords, " ") %>% unlist() %>% table() %>% as.data.frame() %>% arrange(desc(Freq))
+colnames(stem_eminem_mid) <- c("word","count")
+stem_eminem_mid$frequency <- stem_eminem_mid$count/sum(stem_eminem_mid$count)
+
+stem_eminem_recent <- strsplit(eminem_recent$stemmedwords, " ") %>% unlist() %>% table() %>% as.data.frame() %>% arrange(desc(Freq))
+colnames(stem_eminem_recent) <- c("word","count")
+stem_eminem_recent$frequency <- stem_eminem_recent$count/sum(stem_eminem_recent$count)
+
+eminem_top10 <- as.character(stem_eminem[1:10,]$word)
+
+eminem_early_top <- filter(stem_eminem_early, word %in% eminem_top10) %>% select(-count)
+eminem_mid_top <- filter(stem_eminem_mid, word %in% eminem_top10)%>% select(-count)
+eminem_recent_top <- filter(stem_eminem_recent, word %in% eminem_top10)%>% select(-count)
+eminem_alltime_top <- stem_eminem[1:10,] %>% select(-count)
+
+eminem_top10_freq <- Reduce(function(x,y) merge(x = x, y = y, by = "word"), 
+       list(eminem_alltime_top, eminem_early_top, eminem_mid_top, eminem_recent_top)) 
+colnames(eminem_top10_freq) <- c("word" ,"alltime", "early", "mid", "recent")
+eminem_top10_freq_gather <- gather(eminem_top10_freq, key = "type", value = "frequency", -word)
+
+eminem_top10_plot <- ggplot(eminem_top10_freq_gather, aes(x = type,y = frequency,fill = type)) +
+  geom_bar(position = "dodge", stat = "identity") + ylab("") + 
+  facet_wrap( ~word, scales = "free", nrow = 2, ncol = 5) + 
+  theme(axis.title.x = element_blank(),axis.text.x = element_blank(),axis.ticks.x=element_blank())+
+  ggtitle("Frequency change of top 10 words used across time")+labs(y="")+
+  theme(panel.spacing.x = unit(1, "cm"), panel.spacing.y = unit(1, "cm"))
+
+eminem_top10_plot <- ggplotly(eminem_top10_plot)
+eminem_top10_plot
+```
+
+From plot, we can see that, there are words with constant frequency, and also words with frequency change over time. For example, word such as “time” does not have a significant difference in frequency over different stages. However, negative words such as “ass” and “shady” are being used less frequently over time. Meanwhile, positive word “love” has an upward trend in frequency of appearance. It seems like that Eminem might be getting more positive in his word choice!
+
+## Summary
+
+To conclude, by analyzing the song lyrics, we found that
+
++ Hip-hop songs have the most lyric word count, with above-average effective ratio.
+
++ Among all hip-hop artists, Eminem is prolific and writes long songs.
+
++ Eminem has his unique choice of words, and his preferences changes over time.
+
+
+
+
+
+
