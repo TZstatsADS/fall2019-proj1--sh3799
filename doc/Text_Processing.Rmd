@@ -12,7 +12,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 "artists.csv" provides the background information of all the artistis. These information are scraped from [LyricsFreak](https://www.lyricsfreak.com/).
 
-In this R notebook, we process the raw textual data for our data analysis.
+In this R notebook, we process raw textual data for our data analysis.
 
 ### Step 0 - Load all the required libraries
 
