@@ -10,7 +10,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 
-packages.used=c("tidyverse", "wordcloud2", "ngram", "gridExtra", "plotly", "tidytext")
+packages.used=c("tidyverse", "devtools", "ngram", "gridExtra", "plotly", "tidytext")
 # check packages that need to be installed.
 packages.needed=setdiff(packages.used, 
                         intersect(installed.packages()[,1], 
@@ -21,11 +21,14 @@ if(length(packages.needed)>0){
 }
 
 library(tidyverse)
-library(wordcloud2)
+library(devtools)
 library(ngram)
 library(gridExtra)
 library(plotly)
 library(tidytext)
+
+devtools::install_github("lchiffon/wordcloud2", force = T, quiet = T)
+library(wordcloud2)
 
 load('../output/processed_lyrics.RData')
 dt_lyrics <- dt_lyrics %>% filter(genre != "Not Available")
